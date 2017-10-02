@@ -2,13 +2,17 @@ import math
 
 # plot here: https://www.darrinward.com/lat-long/
 # it requires a comma and no spaces...
-# worldpath.py | sed -e 's/ /,/'
+# python worldpath.py | sed -e 's/ /,/'
 
 R = 6371 # earth radius in km
-r = 1.0  # geometry radius
+r = 1.0  # geometry radius in same units as R
 
-olon = -1.959652
+# oxenhope
 olat = 53.810016
+olon = -1.959652
+# waikiki - gerono
+olat=21.2765
+olon=-157.8460
 
 print(olat, olon)
 stepcount = 200
