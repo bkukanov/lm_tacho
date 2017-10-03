@@ -9,7 +9,7 @@ port (
   test_mode   : in  std_logic;
   sensor      : in  std_logic;
   test_sensor : in  std_logic;
-  rev_count   : out unsigned( 20 downto 0 )
+  rev_count   : out unsigned( 23 downto 0 )
   );
 end entity rev_counter;
 
@@ -34,11 +34,12 @@ architecture rtl of rev_counter is
 
   -- overall rev count
   -- 24 hrs * 60 mins * 1500 rpm = 2.16 Mrev 'b10 << 20
-  signal rev_count_r0 : unsigned( 20 downto 0 );
+  -- use 24 bits to save padding up to 3 bytes elsewhere
+  signal rev_count_r0 : unsigned( 23 downto 0 );
 
 begin
 
-  rev_count <= rev_count_r0; -- 21 bit counter output
+  rev_count <= rev_count_r0; -- 24 bit counter output
 
   p_rev_counter_reg: process( clk, reset )
   begin

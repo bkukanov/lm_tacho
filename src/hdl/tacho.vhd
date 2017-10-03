@@ -38,18 +38,18 @@ architecture rtl of tacho is
     test_mode   : in  std_logic;
     sensor      : in  std_logic;
     test_sensor : in  std_logic;
-    rev_count   : out unsigned( 20 downto 0 )
+    rev_count   : out unsigned( 23 downto 0 )
     );
   end component rev_counter;
 
-  signal rev_count : unsigned( 20 downto 0 );
+  signal rev_count : unsigned( 23 downto 0 );
 
   component filter is
   port (
     clk       : in  std_logic;
     reset     : in  std_logic;
     strobe    : in  std_logic;
-    rev_count : in  unsigned( 20 downto 0 );
+    rev_count : in  unsigned( 23 downto 0 );
     sigma     : out unsigned( 15 downto 0 )
     );
   end component filter;
@@ -58,19 +58,22 @@ architecture rtl of tacho is
 
   component post_process is
   port (
-    clk     : in  std_logic;
-    reset   : in  std_logic;
-    strobe  : in  std_logic;
-    rpm     : in  std_logic;
-    sigma   : in  unsigned( 15 downto 0 );
+    clk       : in  std_logic;
+    reset     : in  std_logic;
+    strobe    : in  std_logic;
+    rev_count : in unsigned( 23 downto 0 );
+    rpm       : in  std_logic;
+    sigma     : in  unsigned( 15 downto 0 );
     -- uart
-    byte0   : out std_logic_vector( 7 downto 0 );
-    byte1   : out std_logic_vector( 7 downto 0 );
-    byte2   : out std_logic_vector( 7 downto 0 );
-    byte3   : out std_logic_vector( 7 downto 0 );
+    byte0     : out std_logic_vector( 7 downto 0 );
+    byte1     : out std_logic_vector( 7 downto 0 );
+    byte2     : out std_logic_vector( 7 downto 0 );
+    byte3     : out std_logic_vector( 7 downto 0 );
+    byte4     : out std_logic_vector( 7 downto 0 );
+    byte5     : out std_logic_vector( 7 downto 0 );
     -- seven segment display
-    sseg_an : out std_logic_vector( 3 downto 0 );
-    sseg_ca : out std_logic_vector( 7 downto 0 )
+    sseg_an   : out std_logic_vector( 3 downto 0 );
+    sseg_ca   : out std_logic_vector( 7 downto 0 )
     );
   end component post_process;
 
@@ -78,6 +81,8 @@ architecture rtl of tacho is
   signal byte1 : std_logic_vector( 7 downto 0 );
   signal byte2 : std_logic_vector( 7 downto 0 );
   signal byte3 : std_logic_vector( 7 downto 0 );
+  signal byte4 : std_logic_vector( 7 downto 0 );
+  signal byte5 : std_logic_vector( 7 downto 0 );
 
   component uart is
   port (
@@ -88,6 +93,8 @@ architecture rtl of tacho is
     byte1   : in  std_logic_vector( 7 downto 0 );
     byte2   : in  std_logic_vector( 7 downto 0 );
     byte3   : in  std_logic_vector( 7 downto 0 );
+    byte4   : in  std_logic_vector( 7 downto 0 );
+    byte5   : in  std_logic_vector( 7 downto 0 );
     txd     : out std_logic
     );
   end component uart;
@@ -126,17 +133,20 @@ begin
 
   u0_post_process: post_process
   port map (
-    clk     => clk,
-    reset   => reset,
-    strobe  => strobe,
-    sigma   => sigma,
-    rpm     => rpm,
-    byte0   => byte0,
-    byte1   => byte1,
-    byte2   => byte2,
-    byte3   => byte3,
-    sseg_an => sseg_an,
-    sseg_ca => sseg_ca
+    clk       => clk,
+    reset     => reset,
+    strobe    => strobe,
+    rev_count => rev_count,
+    sigma     => sigma,
+    rpm       => rpm,
+    byte0     => byte0,
+    byte1     => byte1,
+    byte2     => byte2,
+    byte3     => byte3,
+    byte4     => byte4,
+    byte5     => byte5,
+    sseg_an   => sseg_an,
+    sseg_ca   => sseg_ca
     );
 
   u0_uart: uart
@@ -148,6 +158,8 @@ begin
     byte1  => byte1,
     byte2  => byte2,
     byte3  => byte3,
+    byte4  => byte4,
+    byte5  => byte5,
     txd    => tx_data
     );
 

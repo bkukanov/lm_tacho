@@ -3,7 +3,7 @@
 <!--                                                         -->
 <!-- Copyright 1986-2016 Xilinx, Inc. All Rights Reserved.   -->
 
-<Project Version="7" Minor="14" Path="/home/pb/Basys3/Projects/tacho/tacho.xpr">
+<Project Version="7" Minor="14" Path="/home/pb/Basys3/Projects/lm_tacho/tacho.xpr">
   <DefaultLaunch Dir="$PRUNDIR"/>
   <Configuration>
     <Option Name="Id" Val="4cd9601b1a474109b6bb794278bc7df5"/>

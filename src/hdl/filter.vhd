@@ -7,7 +7,7 @@ port (
   clk          : in  std_logic;
   reset        : in  std_logic;
   strobe       : in  std_logic;
-  rev_count    : in  unsigned( 20 downto 0 );
+  rev_count    : in  unsigned( 23 downto 0 );
   sigma        : out unsigned( 15 downto 0 )
   );
 end entity filter;
@@ -18,8 +18,8 @@ end entity filter;
 -- making the output value in Hertz: sum(deltas)/8 * 4 = sum(deltas)/2
 
 architecture rtl of filter is
-  signal count_r0  : unsigned( 20 downto 0 );
-  signal delta     : unsigned( 20 downto 0 );
+  signal count_r0  : unsigned( 23 downto 0 );
+  signal delta     : unsigned( 23 downto 0 );
   type delta_type is array (7 downto 0) of unsigned( 12 downto 0 );
   signal delta_r   : delta_type;
   signal sigma01   : unsigned( 13 downto 0 );

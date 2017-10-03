@@ -11,6 +11,8 @@ port (
   byte1  : in  std_logic_vector( 7 downto 0 );
   byte2  : in  std_logic_vector( 7 downto 0 );
   byte3  : in  std_logic_vector( 7 downto 0 );
+  byte4  : in  std_logic_vector( 7 downto 0 );
+  byte5  : in  std_logic_vector( 7 downto 0 );
   txd    : out std_logic
   );
 end entity uart;
@@ -29,7 +31,7 @@ end entity uart;
 architecture rtl of uart is
 
 signal busy_r0      : std_logic;
-signal tx_data_r    : std_logic_vector( 38 downto 0 );
+signal tx_data_r    : std_logic_vector( 58 downto 0 );
 signal bit_timer_r0 : unsigned( 13 downto 0 );
 signal bit_count_r0 : unsigned( 5 downto 0 );
 
@@ -51,19 +53,19 @@ begin
 
             if strobe = '1' then
                busy_r0      <= '1';
-               tx_data_r    <= byte3 & "01" & byte2 & "01" & byte1 & "01" & byte0 & '0';
+               tx_data_r    <= byte5 & "01" & byte4 & "01" & byte3 & "01" & byte2 & "01" & byte1 & "01" & byte0 & '0';
                bit_timer_r0 <= BAUD_9600;
-               bit_count_r0 <= "100111"; -- 40 - 1
+               bit_count_r0 <= "111011"; -- 60 - 1
             end if;
 
          else
             if bit_timer_r0 = 0 then -- current bit is done
 
                -- shift the byte out LSB first - i.e. right shift
-               tx_data_r    <= '1' & tx_data_r( 38 downto 1 );
+               tx_data_r    <= '1' & tx_data_r( tx_data_r'high downto 1 );
                bit_timer_r0 <= BAUD_9600;
 
-               if bit_count_r0 = 0 then -- 40th bit has been sent
+               if bit_count_r0 = 0 then -- 60th bit has been sent
 
                   busy_r0      <= '0';
                else

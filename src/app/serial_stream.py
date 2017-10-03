@@ -1,10 +1,9 @@
 import serial
-import re
+from datetime import datetime
 
-tty = serial.Serial("/dev/ttyUSB1")
+tty = serial.Serial("/dev/ttyUSB1", timeout=0)
 
 while 1:
-    # readline returns bytes, convert to string and extract decimal digits
-    # this gives a list, but we only want element [0] as an integer
-    v = int(re.findall(r'\d+', str(tty.readline()))[0])
-    print(v)
+    v = tty.readline()[:-2]               # strip off last two bytes \r\n
+    if len(v) == 4:
+        print(datetime.now(), int(v[3])*256*256*256 + int(v[2]*256*256) + int(v[1]*256) + int(v[0]));

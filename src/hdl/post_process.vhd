@@ -7,12 +7,15 @@ port (
   clk       : in  std_logic;
   reset     : in  std_logic;
   strobe    : in  std_logic;
+  rev_count : in  unsigned( 23 downto 0 );
   sigma     : in  unsigned( 15 downto 0 );
   rpm       : in  std_logic;
   byte0     : out std_logic_vector( 7 downto 0 );
   byte1     : out std_logic_vector( 7 downto 0 );
   byte2     : out std_logic_vector( 7 downto 0 );
   byte3     : out std_logic_vector( 7 downto 0 );
+  byte4     : out std_logic_vector( 7 downto 0 );
+  byte5     : out std_logic_vector( 7 downto 0 );
   sseg_an   : out std_logic_vector( 3 downto 0 );
   sseg_ca   : out std_logic_vector( 7 downto 0 )
   );
@@ -25,7 +28,7 @@ end post_process;
 -- the decimal digits are time multiplexed onto the cathode and relevant anode
 -- of the seven segment display is powered up
 
--- decimal digits are also pushed out to the uart as ascii bytes for Hertz only
+-- the binary value of the rev_count is output in 6 bytes to the uart
 
 architecture rtl of post_process is
 
@@ -36,7 +39,6 @@ architecture rtl of post_process is
   signal htz_sigma_r2 : unsigned( 12 downto 0 );
   signal htz_anode_r2 : std_logic_vector( 3 downto 0 );
   signal htz_digit_r2 : digit_type( 3 downto 0 );
-  signal htz_digit_r3 : digit_type( 1 downto 0 );
 
   signal rpm_sigma_r0 : unsigned( 20 downto 0 );
   signal rpm_sigma_r1 : unsigned( 12 downto 0 );
@@ -83,6 +85,8 @@ begin
       byte1 <= (others => '0');
       byte2 <= (others => '0');
       byte3 <= (others => '0');
+      byte4 <= (others => '0');
+      byte5 <= (others => '0');
 
     elsif rising_edge( clk ) then
 
@@ -98,10 +102,12 @@ begin
         htz_sigma_r2 <= htz_sigma_r1;
         htz_digit_r2 <= (others => (others => '0'));
 
-        byte0 <= "0011" & std_logic_vector( htz_digit_r2( 1 )); -- 'h30-'h39
-        byte1 <= "0011" & std_logic_vector( htz_digit_r2( 0 )); -- 'h30-'h39
-        byte2 <= "00001101";                                    -- 'h0d = CR
-        byte3 <= "00001010";                                    -- 'h0a = LF
+        byte0 <= std_logic_vector(rev_count(  7 downto  0 ));
+        byte1 <= std_logic_vector(rev_count( 15 downto  8 ));
+        byte2 <= std_logic_vector(rev_count( 23 downto 16 ));
+        byte3 <= (others => '0');            -- might drop \r\n and use 'h00
+        byte4 <= "00001101";                                    -- 'h0d = CR
+        byte5 <= "00001010";                                    -- 'h0a = LF
 
         if htz_sigma_r1 >= 10 then
           htz_anode_r2 <= "0011"; -- 2 digits lit
