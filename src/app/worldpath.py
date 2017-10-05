@@ -2,11 +2,11 @@ from __future__ import print_function
 import math
 from math import degrees, radians, cos, sin, asin, sqrt, pi
 
-R = 6371 # earth radius in km
-r = 1.0  # geometry radius is the same unit as R i.e. km
+o = {'lat': 53.810016, 'lon': -1.959652} # oxenhope
+o = {'lat': 21.2765, 'lon': -157.8460} # waikiki
 
-o = {'lat': 53.810016, 'lon':   -1.959652} # oxenhope
-o = {'lat': 21.276500, 'lon': -157.846000} # waikiki
+R = 6371 # earth radius in km
+r = 1.0  # radius used in xy geometry
 
 stepcount = 200
 dtheta = 2*pi/stepcount # assuming curves have 2*pi periodicity
@@ -45,8 +45,8 @@ def gerono(t):
     return (x, y)
 
 def geometry(t):
-    #x, y = circle(t)
-    #x, y = bernoulli(t)
+    x, y = circle(t)
+    x, y = bernoulli(t)
     x, y = gerono(t)
     return (x, y)
 
