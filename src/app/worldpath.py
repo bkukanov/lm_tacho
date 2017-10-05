@@ -1,37 +1,87 @@
+from __future__ import print_function
 import math
-
-# plot here: https://www.darrinward.com/lat-long/
-# it requires a comma and no spaces...
-# worldpath.py | sed -e 's/ /,/'
+from math import degrees, radians, cos, sin, asin, sqrt, pi
 
 R = 6371 # earth radius in km
-r = 1.0  # geometry radius
+r = 1.0  # geometry radius is the same unit as R i.e. km
 
-olon = -1.959652
-olat = 53.810016
+o = {'lat': 53.810016, 'lon': -1.959652} # course origin
 
-print(olat, olon)
 stepcount = 200
+dtheta = 2*pi/stepcount # assuming curves have 2*pi periodicity
 
-dtheta = 2*math.pi/stepcount # all these curves have 2*pi periodicity
+# ------------------------------------------------------------------------------
+# haversine returns the distance between two points {latitude, longitude}
+def haversine(p, q):
+
+    dlat = radians(q['lat'] - p['lat'])
+    dlon = radians(q['lon'] - p['lon'])
+    lat1 = radians(p['lat'])
+    lat2 = radians(q['lat'])
+
+    a = sin(dlat/2)**2 + cos(lat1)*cos(lat2)*sin(dlon/2)**2
+    c = 2*asin(sqrt(a))
+
+    return c * R * 1000 # return value in metres
+
+# ------------------------------------------------------------------------------
+# geometry in the xy plane - here are some nice curves
+def circle(t):
+    x = r*cos(t)
+    y = r*sin(t)
+    return (x, y)
+
+# lemniscate of bernoulli
+def bernoulli(t):
+    x = r*sqrt(2)*cos(t)/(sin(t)*sin(t)+1)
+    y = r*sqrt(2)*cos(t)*sin(t)/(sin(t)*sin(t)+1)
+    return (x, y)
+
+# lemniscate of gerono
+def gerono(t):
+    x = r*cos(t)
+    y = r*cos(t)*sin(t)
+    return (x, y)
+
+def geometry(t):
+    x, y = circle(t)
+    x, y = bernoulli(t)
+    x, y = gerono(t)
+    return (x, y)
+
+# ------------------------------------------------------------------------------
+# xy to geographical coordinates
+def geographical(p):
+    x, y = p
+    # world coordinates R in km -> x,y in km, {lat, lon} in degrees
+    lat = o['lat'] + degrees(y/R)
+    lon = o['lon'] + degrees(x/(R*cos(radians(o['lat']))))
+    return {'lat': lat, 'lon': lon}
+
+# ------------------------------------------------------------------------------
+
+# __main__
 
 theta = 0
+course = []
+dist = 0
+
+# calculate xy coordinates and map to geographical.
+# R in km and geometry x,y in km {lat, lon} in degrees
+p = geographical(geometry(theta))
 
 for step in range(stepcount):
-    # geometry - circle
-    x = r*math.cos(theta)
-    y = r*math.sin(theta)
-    # lemniscate of bernoulli
-    x = r*math.sqrt(2)*math.cos(theta)                /(math.sin(theta)*math.sin(theta)+1)
-    y = r*math.sqrt(2)*math.cos(theta)*math.sin(theta)/(math.sin(theta)*math.sin(theta)+1)
-    # lemniscate of gerono
-    x = r*math.cos(theta)
-    y = r*math.cos(theta)*math.sin(theta)
-
-    # world coordinates R in km -> x,y in km, {lat, lon} in degrees
-    plat = olat + 180*y/(math.pi*R)
-    plon = olon + 180*x/(math.pi*R*math.cos(math.radians(olat)))
-
-    print(plat,plon)
 
     theta += dtheta
+
+    q = geographical(geometry(theta))
+
+    dist += haversine(p, q)
+
+    # record p once we know the distance to q
+    course.append([p['lat'], p['lon'], dist])
+    # p can be plotted at https://www.darrinward.com/lat-long/
+    print("{},{}".format(p['lat'], p['lon']))
+    p = q
+
+print(dist)
