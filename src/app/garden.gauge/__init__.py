@@ -176,10 +176,9 @@ if __name__ == '__main__':
                 self.gauge.tacho    = delta * 4 * 60             # rpm = 4 samples/sec * 60 sec
                 self.gauge.speed    = delta * 4 * 60/900 * 12    # 900 rpm is 12 kph
                 self.gauge.distance = rev[0]/5.0                 # 5 revs is about 1 metre
-                #self.gauge.elapsed  = str(hour)+':'+str(mins)+':'+str(secs)
                 self.gauge.elapsed  = "{:02d}:{:02d}:{:02d}".format(hour, mins, secs)
 
-                activity.write(str(datetime.now()))
+                activity.write(str(time_now))
                 activity.write(" ")
                 activity.write(str(rev[0]))
                 activity.write("\n")
