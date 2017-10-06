@@ -16,7 +16,8 @@ tcx_preamble = """<?xml version="1.0" encoding="UTF-8"?>
         <Calories>{}</Calories>
         <Intensity>Active</Intensity>
         <TriggerMethod>Manual</TriggerMethod>
-        <Track>"""
+        <Track>
+"""
 
 tcx_trackpoint = """          <Trackpoint>
             <Time>{}Z</Time>
@@ -31,7 +32,8 @@ tcx_trackpoint = """          <Trackpoint>
                 <ns3:Speed>{}</ns3:Speed>
               </ns3:TPX>
             </Extensions>
-          </Trackpoint>"""
+          </Trackpoint>
+"""
 
 tcx_postamble = """        </Track>
         <Extensions>

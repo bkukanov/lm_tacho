@@ -38,6 +38,7 @@ from os.path import join, dirname, abspath
 import serial
 from datetime import datetime, timedelta
 from math import degrees, radians, cos, sin, asin, sqrt, pi
+from tcx import tcx_preamble, tcx_trackpoint, tcx_postamble
 
 class Gauge(Widget):
     '''
@@ -54,7 +55,7 @@ class Gauge(Widget):
     file_gauge  = StringProperty(join(path, "lm_tacho_dial_768.png"))
     file_needle = StringProperty(join(path, "lm_tacho_needle_768.png"))
     size_gauge  = BoundedNumericProperty(128, min = 128, max = 600, errorvalue = 128)
-    size_text   = NumericProperty(10)
+    size_text   = NumericProperty(24)
 
     def __init__(self, **kwargs):
         super(Gauge, self).__init__(**kwargs)
@@ -83,9 +84,9 @@ class Gauge(Widget):
             size=(self.size_gauge, self.size_gauge)
         )
 
-        self._speed    = Label(font_size=self.size_text*5, markup=True)
-        self._distance = Label(font_size=self.size_text, markup=True)
-        self._elapsed  = Label(font_size=self.size_text, markup=True)
+        self._speed    = Label(font_size=self.size_text*3, markup=True)
+        self._distance = Label(font_size=self.size_text*1.5, markup=True)
+        self._elapsed  = Label(font_size=self.size_text*1.5, markup=True)
 
         self._gauge.add_widget(_img_gauge)
         self._needle.add_widget(_img_needle)
@@ -111,7 +112,7 @@ class Gauge(Widget):
         self._speed.center_x    = self._gauge.center_x
         self._speed.center_y    = self._gauge.center_y - (self.size_gauge / 7)
         self._distance.center_x = self._gauge.center_x
-        self._distance.center_y = self._gauge.center_y - (self.size_gauge / 4.0)
+        self._distance.center_y = self._gauge.center_y - (self.size_gauge / 4.4)
         self._elapsed.center_x  = self._gauge.center_x
         self._elapsed.center_y  = self._gauge.center_y - (self.size_gauge / 3.4)
 
@@ -134,7 +135,7 @@ if __name__ == '__main__':
     o = {'lat': 21.276500, 'lon': -157.846000} # waikiki
 
     R = 6371 # earth radius in km
-    r = 1.0  # radius used in xy geometry
+    r = 1.00  # radius used in xy geometry
 
     # ------------------------------------------------------------------------------
     # haversine returns the distance between two points {latitude, longitude}
@@ -186,29 +187,24 @@ if __name__ == '__main__':
 
     # ------------------------------------------------------------------------------
 
-    stepcount = 200
+    stepcount = 500
     dtheta    = 2*pi/stepcount # assuming curves have 2*pi periodicity
     theta     = 0
-    course    = []
+    track     = []
     dist      = 0
-
-    # calculate xy coordinates and map to geographical.
-    # R in km and geometry x,y in km {lat, lon} in degrees
-    p = geographical(geometry(theta))
+    q         = {}
 
     for step in range(stepcount):
+        # calculate xy coordinates and map to geographical.
+        # R in km and geometry x,y in km {lat, lon} in degrees
+        p = geographical(geometry(theta))
 
+        if theta > 0: # calculate distance to last point
+            dist += haversine(p, q)
+
+        track.append({'lat': p['lat'], 'lon': p['lon'], 'dist': dist})
         theta += dtheta
-
-        q = geographical(geometry(theta))
-
-        dist += haversine(p, q)
-
-        # record p once we know the distance to q
-        course.append([p['lat'], p['lon'], dist])
-        # p can be plotted at https://www.darrinward.com/lat-long/
-        #print("{},{}".format(p['lat'], p['lon']))
-        p = q
+        q = p
 
     # -------------------------------------------------------------------------
 
@@ -221,7 +217,8 @@ if __name__ == '__main__':
     time_start = datetime.now()
 
     timestamps = []
-    trackpoint = 0
+    trackptr   = 0
+    lapcount   = 0
 
     class GaugeApp(App):
 
@@ -234,7 +231,7 @@ if __name__ == '__main__':
             return box
 
         def gauge_update(self):
-            global rev, time_start, course, timestamps, trackpoint
+            global rev, time_start, track, timestamps, trackptr, lapcount
 
             rev_bytes = serialport.readline()[:-2]               # strip off last two bytes \r\n
 
@@ -252,24 +249,55 @@ if __name__ == '__main__':
                      time_now   = time_start
                      distance   = 0
                      timestamps = []
-                     trackpoint = 0
+                     trackptr   = 0
 
                 time_delta = time_now - time_start
                 hour, remr = divmod(time_delta.seconds, 60*60)
                 mins, secs = divmod(remr, 60)
 
                 self.gauge.tacho    = delta * 4 * 60             # rpm = 4 samples/sec * 60 sec
-                self.gauge.speed    = delta * 4 * 60/900 * 12    # 900 rpm is 12 kph
-                self.gauge.distance = rev[0]/5.0                 # 5 revs is about 1 metre
+                self.gauge.speed    = self.gauge.tacho/850 * 12  # 850 rpm is 12 kph
+                self.gauge.distance = rev[0]/4.8                 # 4.8 revs is about 1 metre
                 self.gauge.elapsed  = "{:02d}:{:02d}:{:02d}".format(hour, mins, secs)
 
-                if self.gauge.distance > course[trackpoint][2]:
-                    timestamps.append([time_now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3], self.gauge.speed])
-                    trackpoint += 1
+                if self.gauge.distance > (track[trackptr]['dist'] + lapcount*track[-1]['dist']):
+                    timestamps.append({'time': time_now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3], 'speed': self.gauge.speed, 'dist': self.gauge.distance})
+                    trackptr = (trackptr + 1) % len(track)
+                    if trackptr == 0:
+                        lapcount += 1
 
     GaugeApp().run()
-    print(timestamps)
-#    activity = open('activity.tcx', 'w')
-#    activity.write(preamble.format())
-#    activity.write(postamble.format())
-#    activity.close()
+
+    # -------------------------------------------------------------------------
+    # the app has run, now generate the activity file in tcx format
+
+    max_speed = 0
+    for x in timestamps:
+        if x['speed'] > max_speed:
+            max_speed = x['speed']
+
+    total_distance = timestamps[-1]['dist']                            # taken from the last timestamp
+    time_start_str = time_start.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
+    time_elapsed   = datetime.now() - time_start
+    calories       = 1000*time_elapsed.seconds/3600                    # crude calc: 1000 calories/hour
+    elevation      = 0
+    average_speed  = total_distance / time_elapsed.seconds
+
+    activity = open('activity_{}.tcx'.format(time_start.strftime("%Y%m%d%H%M")), 'w')
+    activity.write(tcx_preamble.format(time_start_str, time_start_str, time_elapsed.seconds, total_distance, max_speed, calories))
+
+    for tp in range(len(timestamps)):
+        activity.write(tcx_trackpoint.format(timestamps[tp]['time'], track[tp%stepcount]['lat'], track[tp%stepcount]['lon'], elevation, timestamps[tp]['dist'], timestamps[tp]['speed']))
+
+    activity.write(tcx_postamble.format(average_speed))
+    activity.close()
+
+    print("Total distance: {}".format(total_distance))
+    hour, remr = divmod(time_elapsed.seconds, 60*60)
+    mins, secs = divmod(remr, 60)
+    print("Total time: {}:{}:{}".format(hour, mins, secs))
+    print("Average speed: {}".format(average_speed))
+    print("Total revs: {}".format(rev[0]))
+    print("Lap length: {}".format(track[-1]['dist']))
+    print("Total laps: {}".format(total_distance/track[-1]['dist']))
+    print("File: {}".format('activity_{}.tcx'.format(time_start.strftime("%Y%m%d%H%M"))))
