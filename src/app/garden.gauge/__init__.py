@@ -37,6 +37,7 @@ from os.path import join, dirname, abspath
 
 import serial
 from datetime import datetime, timedelta
+from math import degrees, radians, cos, sin, asin, sqrt, pi
 
 class Gauge(Widget):
     '''
@@ -129,17 +130,98 @@ class Gauge(Widget):
 
 if __name__ == '__main__':
 
-    serialport = serial.Serial("/dev/ttyUSB1")
-    activity = open('activity.kyk', 'w')
+    o = {'lat': 53.810016, 'lon':   -1.959652} # oxenhope
+    o = {'lat': 21.276500, 'lon': -157.846000} # waikiki
 
-    rev = [0 for x in range(16)]                         # zero all filter values
+    R = 6371 # earth radius in km
+    r = 1.0  # radius used in xy geometry
+
+    # ------------------------------------------------------------------------------
+    # haversine returns the distance between two points {latitude, longitude}
+    def haversine(p, q):
+
+        dlat = radians(q['lat'] - p['lat'])
+        dlon = radians(q['lon'] - p['lon'])
+        lat1 = radians(p['lat'])
+        lat2 = radians(q['lat'])
+
+        a = sin(dlat/2)**2 + cos(lat1)*cos(lat2)*sin(dlon/2)**2
+        c = 2*asin(sqrt(a))
+
+        return c * R * 1000 # return value in metres
+
+    # ------------------------------------------------------------------------------
+    # geometry in the xy plane - here are some nice curves
+    def circle(t):
+        x = r*cos(t)
+        y = r*sin(t)
+        return (x, y)
+
+    # lemniscate of bernoulli
+    def bernoulli(t):
+        x = r*sqrt(2)*cos(t)/(sin(t)*sin(t)+1)
+        y = r*sqrt(2)*cos(t)*sin(t)/(sin(t)*sin(t)+1)
+        return (x, y)
+
+    # lemniscate of gerono
+    def gerono(t):
+        x = r*cos(t)
+        y = r*cos(t)*sin(t)
+        return (x, y)
+
+    def geometry(t):
+        x, y = circle(t)
+        x, y = bernoulli(t)
+        x, y = gerono(t)
+        return (x, y)
+
+    # ------------------------------------------------------------------------------
+    # xy to geographical coordinates
+    def geographical(p):
+        x, y = p
+        # world coordinates R in km -> x,y in km, {lat, lon} in degrees
+        lat = o['lat'] + degrees(y/R)
+        lon = o['lon'] + degrees(x/(R*cos(radians(o['lat']))))
+        return {'lat': lat, 'lon': lon}
+
+    # ------------------------------------------------------------------------------
+
+    stepcount = 200
+    dtheta    = 2*pi/stepcount # assuming curves have 2*pi periodicity
+    theta     = 0
+    course    = []
+    dist      = 0
+
+    # calculate xy coordinates and map to geographical.
+    # R in km and geometry x,y in km {lat, lon} in degrees
+    p = geographical(geometry(theta))
+
+    for step in range(stepcount):
+
+        theta += dtheta
+
+        q = geographical(geometry(theta))
+
+        dist += haversine(p, q)
+
+        # record p once we know the distance to q
+        course.append([p['lat'], p['lon'], dist])
+        # p can be plotted at https://www.darrinward.com/lat-long/
+        #print("{},{}".format(p['lat'], p['lon']))
+        p = q
+
+    # -------------------------------------------------------------------------
+
+    serialport = serial.Serial("/dev/ttyUSB1")
+    rev_bytes  = serialport.readline()[:-2]               # strip off last two bytes \r\n
+    rev = [0 for x in range(16)]                          # zero all filter values
+    if len(rev_bytes) == 4:
+        rev = [int(rev_bytes[3])*256*256*256 + int(rev_bytes[2]*256*256) + int(rev_bytes[1]*256) + int(rev_bytes[0])] + rev[:-1]
 
     time_start = datetime.now()
 
-    rev_bytes = serialport.readline()[:-2]               # strip off last two bytes \r\n
-
-    if len(rev_bytes) == 4:
-        rev = [int(rev_bytes[3])*256*256*256 + int(rev_bytes[2]*256*256) + int(rev_bytes[1]*256) + int(rev_bytes[0])] + rev[:-1]
+    timestamps = []
+    trackpoint = 0
 
     class GaugeApp(App):
 
@@ -152,7 +234,7 @@ if __name__ == '__main__':
             return box
 
         def gauge_update(self):
-            global rev, time_start
+            global rev, time_start, course, timestamps, trackpoint
 
             rev_bytes = serialport.readline()[:-2]               # strip off last two bytes \r\n
 
@@ -164,10 +246,13 @@ if __name__ == '__main__':
                 time_now = datetime.now()
 
                 if delta < 0: # reset must have been pressed
-                     rev = [0 for x in range(len(rev))]
-                     delta = 0
+                     rev        = [0 for x in range(len(rev))]
+                     delta      = 0
                      time_start = datetime.now()
                      time_now   = time_start
+                     distance   = 0
+                     timestamps = []
+                     trackpoint = 0
 
                 time_delta = time_now - time_start
                 hour, remr = divmod(time_delta.seconds, 60*60)
@@ -178,11 +263,13 @@ if __name__ == '__main__':
                 self.gauge.distance = rev[0]/5.0                 # 5 revs is about 1 metre
                 self.gauge.elapsed  = "{:02d}:{:02d}:{:02d}".format(hour, mins, secs)
 
-                activity.write(str(time_now))
-                activity.write(" ")
-                activity.write(str(rev[0]))
-                activity.write("\n")
+                if self.gauge.distance > course[trackpoint][2]:
+                    timestamps.append([time_now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3], self.gauge.speed])
+                    trackpoint += 1
 
     GaugeApp().run()
-    activity.close()
-
+    print(timestamps)
+#    activity = open('activity.tcx', 'w')
+#    activity.write(preamble.format())
+#    activity.write(postamble.format())
+#    activity.close()
