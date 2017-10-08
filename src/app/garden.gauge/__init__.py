@@ -206,6 +206,9 @@ if __name__ == '__main__':
         theta += dtheta
         q = p
 
+    # total lap closes the loop back to the first point from the last
+    lap_distance = dist + haversine(q, geographical(geometry(0)))
+
     # -------------------------------------------------------------------------
 
     serialport = serial.Serial("/dev/ttyUSB1")
@@ -218,7 +221,7 @@ if __name__ == '__main__':
 
     timestamps = []
     trackptr   = 0
-    lapcount   = 0
+    lap_count  = 0
 
     class GaugeApp(App):
 
@@ -231,7 +234,7 @@ if __name__ == '__main__':
             return box
 
         def gauge_update(self):
-            global rev, time_start, track, timestamps, trackptr, lapcount
+            global rev, time_start, track, timestamps, trackptr, lap_count, lap_distance
 
             rev_bytes = serialport.readline()[:-2]               # strip off last two bytes \r\n
 
@@ -260,11 +263,11 @@ if __name__ == '__main__':
                 self.gauge.distance = rev[0]/4.8                 # 4.8 revs is about 1 metre
                 self.gauge.elapsed  = "{:02d}:{:02d}:{:02d}".format(hour, mins, secs)
 
-                if self.gauge.distance > (track[trackptr]['dist'] + lapcount*track[-1]['dist']):
+                if self.gauge.distance > (track[trackptr]['dist'] + lap_count*lap_distance):
                     timestamps.append({'time': time_now.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3], 'speed': self.gauge.speed, 'dist': self.gauge.distance})
                     trackptr = (trackptr + 1) % len(track)
                     if trackptr == 0:
-                        lapcount += 1
+                        lap_count += 1
 
     GaugeApp().run()
 
@@ -298,6 +301,6 @@ if __name__ == '__main__':
     print("Total time: {}:{}:{}".format(hour, mins, secs))
     print("Average speed: {}".format(average_speed))
     print("Total revs: {}".format(rev[0]))
-    print("Lap length: {}".format(track[-1]['dist']))
-    print("Total laps: {}".format(total_distance/track[-1]['dist']))
+    print("Lap length: {}".format(lap_distance))
+    print("Total laps: {}".format(total_distance/lap_distance))
     print("File: {}".format('activity_{}.tcx'.format(time_start.strftime("%Y%m%d%H%M"))))
