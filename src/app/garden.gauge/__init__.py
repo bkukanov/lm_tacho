@@ -131,8 +131,9 @@ class Gauge(Widget):
 
 if __name__ == '__main__':
 
-    o = {'lat': 53.810016, 'lon':   -1.959652} # oxenhope
-    o = {'lat': 21.276500, 'lon': -157.846000} # waikiki
+    o = {'lat':  53.8100160, 'lon':   -1.9596520} # oxenhope
+    o = {'lat':  21.2765000, 'lon': -157.8460000} # waikiki
+    o = {'lat': -34.2452585, 'lon':   18.6372443} # capetown
 
     R = 6371 # earth radius in km
     r = 1.00  # radius used in xy geometry
@@ -171,9 +172,9 @@ if __name__ == '__main__':
         return (x, y)
 
     def geometry(t):
-        x, y = circle(t)
+        #x, y = circle(t)
         x, y = bernoulli(t)
-        x, y = gerono(t)
+        #x, y = gerono(t)
         return (x, y)
 
     # ------------------------------------------------------------------------------
