@@ -13,14 +13,25 @@ class event_pin:
       self._last_edge  = None
       self._delta      = None
 
-      device.set_mode(gpio, pigpio.INPUT)
-      device.set_glitch_filter(gpio, 200) # microseconds
+      # debounce in software
+      #   the magnet is at 15 cm radius
+      #   one revolution has circumference 2pi*0.15 = 3.2*0.3 = 0.96 m
+      #   a 5 mm magnet accounts for 0.005/0.96 of one revolution
+      #   at 20 Hz (1200 rpm) one revolution takes 50 ms
+      #   time for magnet over the sensor is 50*0.005/0.96 = 260 us
+      #     => discard triggers of less than 200 us duration
+      #   this is easily achievable with the 1 MHz (1 us) clock
 
-      self._cb = device.callback(gpio, pigpio.RISING_EDGE, self._cbf)
+      DEBOUNCE = 200 # microseconds
+
+      device.set_mode(gpio, pigpio.INPUT)
+      device.set_glitch_filter(gpio, DEBOUNCE)
       device.set_watchdog(gpio, self._watchdog)
 
-   def _cbf(self, gpio, level, now):
+      # finally instantiate a callback function for activity on this pin
+      self._cb = device.callback(gpio, pigpio.RISING_EDGE, self._cbf)
 
+   def _cbf(self, gpio, level, now):
       if level == 1: # rising edge
 
          if self._last_edge is not None:
@@ -37,21 +48,22 @@ class event_pin:
 
    def cancel(self):
       # clean up
-      self.device.set_watchdog(self.gpio, 0) # stop watchdog
-      self._cb.cancel()                      # cease responding
+      self.device.set_watchdog(self.gpio, 0) # zero watchdog
+      self._cb.cancel()                      # cancel the callback
 
 if __name__ == "__main__":
 
    import time
    import pigpio
-   import gpio_event
+#  import gpio_event
 
    GPIO_PIN    = 7
    RUN_TIME    = 120.0
    SAMPLE_TIME = 2.0
 
    device = pigpio.pi()
-   pin = gpio_event.event_pin(device, GPIO_PIN)
+   pin = event_pin(device, GPIO_PIN)
+#  pin = gpio_event.event_pin(device, GPIO_PIN)
 
    start = time.time()
    while (time.time() - start) < RUN_TIME:
